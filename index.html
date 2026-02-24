@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Scheduling Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a26;
+            --accent: #6c5ce7;
+            --accent-glow: rgba(108, 92, 231, 0.3);
+            --accent-light: #a29bfe;
+            --success: #00cec9;
+            --error: #ff6b6b;
+            --warning: #feca57;
+            --text-primary: #edf2f7;
+            --text-secondary: #a0aec0;
+            --text-muted: #718096;
+            --border: rgba(255, 255, 255, 0.06);
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ── Animated Background ── */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(108, 92, 231, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(108, 92, 231, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+        }
+
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        .bg-orb.orb-1 {
+            width: 600px;
+            height: 600px;
+            background: var(--accent);
+            top: -200px;
+            right: -200px;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .bg-orb.orb-2 {
+            width: 400px;
+            height: 400px;
+            background: #00cec9;
+            bottom: -100px;
+            left: -100px;
+            animation: float 25s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -30px) scale(1.05); }
+            66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+
+        /* ── Main Card ── */
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
+            padding: 0 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 48px 40px;
+            text-align: center;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.03),
+                0 20px 60px rgba(0, 0, 0, 0.5);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .card.active {
+            box-shadow:
+                0 0 0 1px rgba(108, 92, 231, 0.15),
+                0 0 40px var(--accent-glow),
+                0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        /* ── Header ── */
+        .logo {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent-light);
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        /* ── Call Button ── */
+        .call-btn {
+            position: relative;
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, var(--accent) 0%, #5a4bd1 100%);
+            color: white;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 16px;
+        }
+
+        .call-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .call-btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .call-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .call-btn svg {
+            width: 32px;
+            height: 32px;
+            transition: transform 0.3s ease;
+        }
+
+        .call-btn.active {
+            background: linear-gradient(135deg, var(--error) 0%, #e55555 100%);
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        .call-btn.active svg {
+            transform: rotate(135deg);
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 107, 107, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+
+        .call-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        /* ── Status Indicator ── */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.3s ease;
+        }
+
+        .status-bar.connecting .status-dot {
+            background: var(--warning);
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        .status-bar.active .status-dot {
+            background: var(--success);
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        .status-bar.error .status-dot {
+            background: var(--error);
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ── Live Transcript ── */
+        .transcript-section {
+            margin-top: 24px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .transcript-section.visible {
+            display: block;
+        }
+
+        .transcript-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .transcript-entry {
+            font-size: 13px;
+            line-height: 1.5;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .transcript-entry:last-child {
+            border-bottom: none;
+        }
+
+        .transcript-entry .role {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .transcript-entry .role.agent {
+            color: var(--accent-light);
+        }
+
+        .transcript-entry .role.user {
+            color: var(--success);
+        }
+
+        .transcript-entry .content {
+            color: var(--text-secondary);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Visualizer ── */
+        .visualizer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            height: 32px;
+            margin-bottom: 24px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .visualizer.active {
+            opacity: 1;
+        }
+
+        .visualizer .bar {
+            width: 3px;
+            height: 8px;
+            background: var(--accent-light);
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            position: fixed;
+            bottom: 24px;
+            font-size: 12px;
+            color: var(--text-muted);
+            z-index: 1;
+        }
+
+        .footer a {
+            color: var(--accent-light);
+            text-decoration: none;
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 520px) {
+            .card {
+                padding: 36px 28px;
+                border-radius: 20px;
+            }
+            h1 { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Effects -->
+    <div class="bg-grid"></div>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <!-- Main UI -->
+    <div class="container">
+        <div class="card" id="card">
+            <div class="logo">Voice Scheduler</div>
+            <h1>Book a Meeting<br />With Your Voice</h1>
+            <p class="subtitle">
+                Tap the button below to start a voice call.
+                I'll help you schedule a meeting in seconds.
+            </p>
+
+            <!-- Audio Visualizer -->
+            <div class="visualizer" id="visualizer">
+                <!-- Bars generated by JS -->
+            </div>
+
+            <!-- Call Button -->
+            <button class="call-btn" id="callBtn" onclick="toggleCall()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
+            </button>
+            <div class="call-label" id="callLabel">Tap to start</div>
+
+            <!-- Status -->
+            <div class="status-bar" id="statusBar">
+                <span class="status-dot"></span>
+                <span id="statusText">Ready</span>
+            </div>
+
+            <!-- Live Transcript -->
+            <div class="transcript-section" id="transcriptSection">
+                <div class="transcript-label">Live Transcript</div>
+                <div id="transcriptList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Powered by <a href="https://www.retellai.com" target="_blank">Retell AI</a> &middot; Built by Chaitanya
+    </div>
+
+    <!-- Retell Web SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/retell-client-js-sdk@2.2.1/lib/bundle.js"></script>
+
+    <script>
+        // ──────────────────────────────────────────
+        // State
+        // ──────────────────────────────────────────
+        let retellClient = null;
+        let isCallActive = false;
+        let animationFrameId = null;
+
+        // DOM refs
+        const card = document.getElementById('card');
+        const callBtn = document.getElementById('callBtn');
+        const callLabel = document.getElementById('callLabel');
+        const statusBar = document.getElementById('statusBar');
+        const statusText = document.getElementById('statusText');
+        const visualizer = document.getElementById('visualizer');
+        const transcriptSection = document.getElementById('transcriptSection');
+        const transcriptList = document.getElementById('transcriptList');
+
+        // Create visualizer bars
+        const NUM_BARS = 24;
+        for (let i = 0; i < NUM_BARS; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            visualizer.appendChild(bar);
+        }
+        const bars = visualizer.querySelectorAll('.bar');
+
+        // ──────────────────────────────────────────
+        // API
+        // ──────────────────────────────────────────
+        const API_BASE = window.location.origin;
+
+        async function createWebCall() {
+            const res = await fetch(`${API_BASE}/api/create-web-call`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to create call');
+            }
+            return res.json();
+        }
+
+        // ──────────────────────────────────────────
+        // Call Control
+        // ──────────────────────────────────────────
+        async function toggleCall() {
+            if (isCallActive) {
+                stopCall();
+            } else {
+                await startCall();
+            }
+        }
+
+        async function startCall() {
+            setStatus('connecting', 'Connecting...');
+            callBtn.disabled = true;
+            callLabel.textContent = 'Connecting...';
+
+            try {
+                // 1. Get access token from our backend
+                const { access_token, call_id } = await createWebCall();
+                console.log('Web call created:', call_id);
+
+                // 2. Initialize Retell client
+                retellClient = new window.RetellClient();
+
+                // 3. Register event handlers BEFORE starting
+                retellClient.on('call_started', () => {
+                    console.log('Call started');
+                    isCallActive = true;
+                    callBtn.disabled = false;
+                    callBtn.classList.add('active');
+                    callLabel.textContent = 'Tap to end';
+                    card.classList.add('active');
+                    visualizer.classList.add('active');
+                    setStatus('active', 'Call in progress');
+                    startVisualizerAnimation();
+                });
+
+                retellClient.on('call_ended', () => {
+                    console.log('Call ended');
+                    cleanupCall();
+                });
+
+                retellClient.on('error', (error) => {
+                    console.error('Retell error:', error);
+                    setStatus('error', 'Call error');
+                    cleanupCall();
+                });
+
+                retellClient.on('update', (update) => {
+                    // Live transcript updates
+                    if (update.transcript && update.transcript.length > 0) {
+                        renderTranscript(update.transcript);
+                    }
+                });
+
+                // 4. Start the call
+                await retellClient.startCall({
+                    accessToken: access_token,
+                    sampleRate: 24000,
+                    captureDeviceId: 'default',
+                });
+
+            } catch (err) {
+                console.error('Failed to start call:', err);
+                setStatus('error', err.message || 'Failed to connect');
+                callBtn.disabled = false;
+                callLabel.textContent = 'Tap to retry';
+                cleanupCall();
+            }
+        }
+
+        function stopCall() {
+            if (retellClient) {
+                retellClient.stopCall();
+            }
+            cleanupCall();
+        }
+
+        function cleanupCall() {
+            isCallActive = false;
+            callBtn.disabled = false;
+            callBtn.classList.remove('active');
+            callLabel.textContent = 'Tap to start';
+            card.classList.remove('active');
+            visualizer.classList.remove('active');
+            setStatus('idle', 'Ready');
+            stopVisualizerAnimation();
+            retellClient = null;
+        }
+
+        // ──────────────────────────────────────────
+        // Status
+        // ──────────────────────────────────────────
+        function setStatus(state, text) {
+            statusBar.className = `status-bar ${state}`;
+            statusText.textContent = text;
+        }
+
+        // ──────────────────────────────────────────
+        // Transcript
+        // ──────────────────────────────────────────
+        function renderTranscript(transcript) {
+            transcriptSection.classList.add('visible');
+            transcriptList.innerHTML = '';
+
+            // Show last 6 entries
+            const recent = transcript.slice(-6);
+            recent.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = 'transcript-entry';
+                div.innerHTML = `
+                    <div class="role ${entry.role}">${entry.role === 'agent' ? '◆ Agent' : '● You'}</div>
+                    <div class="content">${escapeHtml(entry.content)}</div>
+                `;
+                transcriptList.appendChild(div);
+            });
+
+            // Auto-scroll
+            transcriptSection.scrollTop = transcriptSection.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ──────────────────────────────────────────
+        // Audio Visualizer (simulated)
+        // ──────────────────────────────────────────
+        function startVisualizerAnimation() {
+            function animate() {
+                bars.forEach((bar, i) => {
+                    // Create a wave-like pattern
+                    const time = Date.now() / 200;
+                    const wave = Math.sin(time + i * 0.4) * 0.5 + 0.5;
+                    const noise = Math.random() * 0.3;
+                    const height = 4 + (wave + noise) * 24;
+                    bar.style.height = `${height}px`;
+                    bar.style.opacity = 0.4 + wave * 0.6;
+                });
+                animationFrameId = requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function stopVisualizerAnimation() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            bars.forEach(bar => {
+                bar.style.height = '8px';
+                bar.style.opacity = '0.4';
+            });
+        }
+    </script>
+</body>
+</html>
