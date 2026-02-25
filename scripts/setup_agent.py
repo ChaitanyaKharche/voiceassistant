@@ -5,9 +5,8 @@ Usage:
     python -m scripts.setup_agent --server-url https://your-app.onrender.com
 
 This will:
-  1. Create a Custom LLM on Retell (pointing to wss://your-app/ws/retell)
-  2. Create an Agent using that LLM
-  3. Print the RETELL_AGENT_ID to add to your .env
+  1. Create an Agent with a Custom LLM websocket URL
+  2. Print the RETELL_AGENT_ID to add to your .env
 
 You only need to run this ONCE (or when changing the server URL).
 """
@@ -15,7 +14,7 @@ You only need to run this ONCE (or when changing the server URL).
 import argparse
 import sys
 
-import retell
+from retell import Retell
 from dotenv import dotenv_values, set_key
 
 
@@ -45,50 +44,41 @@ def main():
     ws_url = args.server_url.replace("https://", "wss://").replace("http://", "ws://")
     ws_url = f"{ws_url.rstrip('/')}/ws/retell"
 
-    print(f"Server URL: {args.server_url}")
+    print(f"Server URL:    {args.server_url}")
     print(f"WebSocket URL: {ws_url}")
     print()
 
-    client = retell.Retell(api_key=api_key)
+    client = Retell(api_key=api_key)
 
-    # ── Step 1: Create Custom LLM ──
-    print("Creating Custom LLM...")
-    llm = client.llm.create(
-        model="custom_llm",
-        custom_llm_url=ws_url,
-    )
-    print(f"  LLM ID: {llm.llm_id}")
-
-    # ── Step 2: Create Agent ──
-    print("Creating Agent...")
+    # ── Create Agent with Custom LLM (v5 SDK — single step) ──
+    print("Creating Agent with Custom LLM...")
     agent = client.agent.create(
-        llm_id=llm.llm_id,
+        response_engine={
+            "type": "custom-llm",
+            "llm_websocket_url": ws_url,
+        },
         agent_name="Voice Scheduling Assistant",
-        voice_id="11labs-Adrian",  # professional male voice
+        voice_id="11labs-Adrian",
         language="en-US",
-        response_engine={"type": "retell-llm", "llm_id": llm.llm_id},
-        # Voice settings
         voice_speed=1.0,
         voice_temperature=0.7,
-        responsiveness=0.8,  # balance between speed and accuracy
-        interruption_sensitivity=0.6,  # allow some interruption
-        enable_backchannel=True,  # "mm-hmm", "I see"
+        responsiveness=0.8,
+        interruption_sensitivity=0.6,
+        enable_backchannel=True,
         backchannel_frequency=0.5,
-        ambient_sound=None,
-        # Conversation behavior
-        reminder_trigger_ms=10000,  # remind after 10s silence
+        reminder_trigger_ms=10000,
         reminder_max_count=2,
-        end_call_after_silence_ms=30000,  # end after 30s silence
-        max_call_duration_ms=300000,  # 5 min max
+        end_call_after_silence_ms=30000,
+        max_call_duration_ms=300000,
     )
     print(f"  Agent ID: {agent.agent_id}")
 
-    # ── Step 3: Update .env ──
+    # ── Update .env ──
     set_key(args.env_file, "RETELL_AGENT_ID", agent.agent_id)
     print()
     print(f"Updated {args.env_file} with RETELL_AGENT_ID={agent.agent_id}")
     print()
-    print("Setup complete! Restart your server to pick up the new agent ID.")
+    print("Setup complete! Add this RETELL_AGENT_ID to Render env vars and redeploy.")
 
 
 if __name__ == "__main__":
