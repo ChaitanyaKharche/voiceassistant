@@ -14,7 +14,6 @@ from contextlib import asynccontextmanager
 
 import retell
 from fastapi import FastAPI, WebSocket, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -52,18 +51,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+class CORSMiddlewareCustom(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+app.add_middleware(CORSMiddlewareCustom)
+
 # ──────────────────────────────────────────────
 # CORS
 # ──────────────────────────────────────────────
-
-settings = get_settings()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 # ──────────────────────────────────────────────
@@ -72,9 +76,10 @@ app.add_middleware(
 
 @app.get("/api/health")
 async def health_check():
+    s = get_settings()
     return {
         "status": "healthy",
-        "agent_id": settings.retell_agent_id or "not configured",
+        "agent_id": s.retell_agent_id or "not configured",
     }
 
 
@@ -115,13 +120,13 @@ async def create_web_call():
 # Retell Custom LLM WebSocket
 # ──────────────────────────────────────────────
 
-@app.websocket("/ws/retell")
-async def retell_websocket(websocket: WebSocket):
+@app.websocket("/ws/retell/{call_id}")
+async def retell_websocket(websocket: WebSocket, call_id: str):
     """
     WebSocket endpoint for Retell's Custom LLM integration.
     Each active call maintains its own WebSocket connection.
     """
-    handler = RetellWebSocketHandler(websocket)
+    handler = RetellWebSocketHandler(websocket, call_id)
     await handler.handle()
 
 
