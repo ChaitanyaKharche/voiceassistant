@@ -411,7 +411,7 @@
     </div>
 
     <!-- Retell Web SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/retell-client-js-sdk@2.2.1/lib/bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/retell-client-js-sdk@2/lib/bundle.js"></script>
 
     <script>
         // ──────────────────────────────────────────
@@ -479,7 +479,7 @@
                 console.log('Web call created:', call_id);
 
                 // 2. Initialize Retell client
-                retellClient = new window.RetellClient();
+                retellClient = new window.RetellWebClient();
 
                 // 3. Register event handlers BEFORE starting
                 retellClient.on('call_started', () => {
