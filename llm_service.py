@@ -168,7 +168,7 @@ class LLMService:
     def __init__(self):
         settings = get_settings()
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
-        self.model = "gpt-4o-mini"  # cost-effective, fast, good at function calling
+        self.model = "gpt-4.1-nano"  # cost-effective, fast, good at function calling
 
     def _build_messages(self, transcript: list[dict]) -> list[dict]:
         """Convert Retell transcript format → OpenAI messages format."""
